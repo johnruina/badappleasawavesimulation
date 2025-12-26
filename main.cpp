@@ -110,7 +110,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     unsigned int timestep = 1;
     unsigned int spatialstep = 1;
     float cellsize = 2;
-    unsigned int waveheight = 20;
+    unsigned int waveheight = 2;
     unsigned int frequency = 1;
     
 
@@ -123,7 +123,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
 
 
 
@@ -183,15 +182,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     vao.Unbind();
     vbo.Unbind();
     ebo.Unbind();
-
-    glEnable(GL_MULTISAMPLE);
+    //glEnable(GL_FRAMEBUFFER_SRGB);
     glEnable(GL_DEPTH_TEST);
     glfwSwapInterval(1);
 
     Camera camera(width,height,glm::vec3(50.0f,54.0f,100.0f) );
 
     int frame = 0;
-    int startframe = 0;
+    int startframe = 300;
     int videoframe = 0;
     while (!glfwWindowShouldClose(window))
     {
@@ -199,65 +197,70 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (frame % 2 == 0) {
             //CHANGING STUFF
             if (frame > startframe) {
-                if (videoframe == 0)     audiosystem.PlayAudio(L"badapple.wav");
+                if (videoframe == 1)     audiosystem.PlayAudio(L"badapple.wav");
                 for (int i = 0; i < ys0.size(); i++) {
                     if (binaries[videoframe * 120 * 90 + i] == 1) {
                         ys0[i] = 1;
                     }
                 }
 
+                ys2 = ys1;
+                ys1 = ys0;
+
+                for (unsigned short int i = 0; i < ys0.size(); i++) {
+                    //REBUILD
+                    ys0[i] = 0.0f;
+                    short int amount = 0;
+                    if (i % x > 0) {
+                        amount++;
+                        ys0[i] += ys1[i - 1];
+                    }
+                    if (i % x < x - 1) {
+                        amount++;
+                        ys0[i] += ys1[i + 1];
+                    }
+
+                    if (i - x >= 0) {
+                        amount++;
+                        ys0[i] += ys1[i - x];
+                    }
+
+                    if (i + x < ys0.size()) {
+                        amount++;
+                        ys0[i] += ys1[i + x];
+                    }
+
+                    ys0[i] -= ys1[i] * amount;
+                    ys0[i] *= 0.25f;
+                    ys0[i] += 2 * ys1[i];
+                    ys0[i] -= ys2[i];
+                    ys0[i] *= 0.950f;
+                    ys0[i] = std::min(ys0[i],1.0f);
+                    //ys0[i] = std::max(ys0[i], -2.0f);
+                }
+
+                for (unsigned short int i = 0; i < x * y; i++) {
+                    vertices[1 + i * 6] = ys1[i] * waveheight;
+                    GLfloat colorf = ys0[i];
+                    glm::vec3 color(colorf);
+                    vertices[3 + i * 6] = color.r;
+                    vertices[4 + i * 6] = color.g;
+                    vertices[5 + i * 6] = color.b;
+                }
+
+                glBufferSubData(GL_ARRAY_BUFFER, NULL, sizeof(vertices), vertices);
+
+                glBindBuffer(GL_ARRAY_BUFFER, vbo.ID);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+                glBindBuffer(GL_ARRAY_BUFFER, 0);
+
                 videoframe += 1;
             }
 
-            //std::cout << frame << "\n";
-            //ys0[ys0.size() / 2] = 1;
-            ys2 = ys1;
-            ys1 = ys0;
-
-            for (unsigned short int i = 0; i < ys0.size(); i++) {
-                //REBUILD
-                ys0[i] = 0.0f;
-                if (i % x >= 0) {
-                    ys0[i] += ys1[i - 1];
-                }
-                if (i % x <= x - 1) {
-                    ys0[i] += ys1[i + 1];
-                }
-
-                if (i - x >= 0) {
-                    ys0[i] += ys1[i - x];
-                }
-
-                if (i + x <= ys0.size()) {
-                    ys0[i] += ys1[i + x];
-                }
-                ys0[i] -= ys1[i] * 4;
-                ys0[i] *= 0.25f;
-                ys0[i] += 2 * ys1[i];
-                ys0[i] -= ys2[i];
-                ys0[i] *= 0.960f;
-                //ys0[i] = std::min(ys0[i],2.0f);
-                //ys0[i] = std::max(ys0[i], -2.0f);
-                if (ys0[i] < 0.05f) ys0[i] = 0.0f;
-            }
-
-            for (unsigned short int i = 0; i < x * y; i++) {
-                vertices[1 + i * 6] = ys1[i] * cellsize;
-                glm::vec3 color = hsv_to_rgb({ ys1[i] * 540.0f / waveheight + 180.0f,100.0f,100.0f });
-                vertices[3 + i * 6] = color.r;
-                vertices[4 + i * 6] = color.g;
-                vertices[5 + i * 6] = color.b;
-            }
-
-            glBufferSubData(GL_ARRAY_BUFFER, NULL, sizeof(vertices), vertices);
-
-            glBindBuffer(GL_ARRAY_BUFFER, vbo.ID);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         }
         //RENDER
-        glClearColor(0.52f, 0.807f, 0.96f, 1.0f);
+        glClearColor(1.0f,1.0f,1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
         ShaderProgram.Activate();
