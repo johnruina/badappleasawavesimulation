@@ -9,6 +9,7 @@
 #include <vector>
 #include <random>
 #include <algorithm>
+#include <bitset>
 
 #include "Audio.h"
 #include "Camera.h"
@@ -81,31 +82,36 @@ glm::vec3 hsv_to_rgb(glm::vec3 color) {
     return glm::vec3(r, g, b);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+
+int main() {
     Audio audiosystem;
 
-    std::vector<bool> binaries;
+    static std::vector<bool> binaries;
     std::ifstream ba;
-    ba.open("BADAPPLEBINARIES.txt");
+    ba.open("4x4.txt", std::ios::binary);
     if (ba.is_open() == false) {
         std::cout << "no existy";
         throw;
     }
-    std::string myText;
 
-    std::getline(ba, myText);
-    while (std::getline(ba, myText)) {
-        for (char x : myText) {
-            if (x == '0') {
-                binaries.push_back(false);
-            }
-            else binaries.push_back(true);
-        }
-    }
+    static std::vector<char> bytes(
+        (std::istreambuf_iterator<char>(ba)),
+        std::istreambuf_iterator<char>()
+    );
 
     ba.close();
-    const unsigned short int x = 480/4;
-    const unsigned short int y = 360/4;
+
+    std::cout << "FINISHED READING BYTES\n";
+    for (int ie = 0; ie < bytes.size(); ie++) {
+        for (int i = 7; i >= 0; i--)
+        {
+            binaries.push_back((bytes[ie] >> i) & 1);
+        }
+    }
+    std::cout << "FINISHED PROCESSING BINARIES\n";
+    static const int x = 480 / 4;
+    static const int y = 360 / 4;
 
     unsigned int timestep = 1;
     unsigned int spatialstep = 1;
@@ -124,13 +130,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
+    static std::vector<GLfloat> ys0(x*y,0);
+    static std::vector<GLfloat> ys1(x * y, 0);
+    static std::vector<GLfloat> ys2(x * y, 0);
 
-
-    std::vector<GLfloat> ys0(x*y,0);
-    std::vector<GLfloat> ys1(x * y, 0);
-    std::vector<GLfloat> ys2(x * y, 0);
-
-    GLfloat vertices[x * y * 6] = {
+    static GLfloat vertices[x * y * 6] = {
 
     };
 
@@ -144,8 +148,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             vertices[6 * (i * x + ie) + 5] = 100.0f/255.0f;
         }
     }
+    std::cout << "FINISHED CREATING VERTICES\n";
 
-    GLuint indices[6 * (y - 1) * (x -1)] = {};
+    static GLuint indices[6 * (y - 1) * (x -1)] = {};
 
     for (unsigned short int i = 0; i < y - 1; i++) {
         for (unsigned short int ie = 0; ie < x - 1; ie++) {
@@ -157,7 +162,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             indices[6 * (i * (x - 1) + ie) + 5] = (ie + 1) + ((i + 1) * x);
         }
     }
-
+    std::cout << "FINISHED CREATING INDICES\n";
     GLFWwindow* window = glfwCreateWindow(width,height,"bad apple wave sim", glfwGetPrimaryMonitor(),NULL);
     if (window == NULL) {
 
@@ -188,26 +193,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     Camera camera(width,height,glm::vec3(50.0f,54.0f,100.0f) );
 
-    int frame = 0;
-    int startframe = 300;
-    int videoframe = 0;
+    unsigned int frame = 0;
+    unsigned int startframe = 300000;
+    unsigned int videoframe = 0;
+
     while (!glfwWindowShouldClose(window))
     {
         frame++;
+        
         if (frame % 2 == 0) {
             //CHANGING STUFF
             if (frame > startframe) {
-                if (videoframe == 1)     audiosystem.PlayAudio(L"badapple.wav");
-                for (int i = 0; i < ys0.size(); i++) {
-                    if (binaries[videoframe * 120 * 90 + i] == 1) {
+                if (videoframe == 0)     audiosystem.PlayAudio(L"badapple.wav");
+
+                
+                for (int i = 0; i < x*y; i++) {
+                    if (binaries[videoframe * x*y + i] == 1) {
                         ys0[i] = 1;
                     }
                 }
-
+                
+                //waves
+                    
                 ys2 = ys1;
                 ys1 = ys0;
 
-                for (unsigned short int i = 0; i < ys0.size(); i++) {
+                
+                for (int i = 0; i < x*y; i++) {
                     //REBUILD
                     ys0[i] = 0.0f;
                     short int amount = 0;
@@ -225,7 +237,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                         ys0[i] += ys1[i - x];
                     }
 
-                    if (i + x < ys0.size()) {
+                    if (i + x < x*y) {
                         amount++;
                         ys0[i] += ys1[i + x];
                     }
@@ -238,33 +250,37 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     ys0[i] = std::min(ys0[i],1.0f);
                     //ys0[i] = std::max(ys0[i], -2.0f);
                 }
-
-                for (unsigned short int i = 0; i < x * y; i++) {
-                    vertices[1 + i * 6] = ys1[i] * waveheight;
+                
+                for (int i = 0; i < x * y; i++) {
+                    vertices[1 + i * 6] = ys1[i] * waveheight;  
                     GLfloat colorf = ys0[i];
                     glm::vec3 color(colorf);
                     vertices[3 + i * 6] = color.r;
                     vertices[4 + i * 6] = color.g;
                     vertices[5 + i * 6] = color.b;
                 }
-
+                
                 glBufferSubData(GL_ARRAY_BUFFER, NULL, sizeof(vertices), vertices);
 
                 glBindBuffer(GL_ARRAY_BUFFER, vbo.ID);
                 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
                 glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+                
                 videoframe += 1;
             }
 
 
         }
+        
         //RENDER
-        glClearColor(1.0f,1.0f,1.0f, 1.0f);
+        glClearColor(0.9f, 0.9f,0.9f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
         ShaderProgram.Activate();
-        
+
+        if (glfwGetKey(window, GLFW_KEY_E)) {
+            startframe = 0;
+        }
         camera.Inputs(window);
 
         camera.Matrix(90.0f,0.1f,1000.0f,ShaderProgram,"camMatrix");
@@ -276,7 +292,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
     vao.Delete();
     vbo.Delete();
     ebo.Delete();
@@ -288,5 +303,4 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     glfwTerminate();
 
     return 0;
-
 }

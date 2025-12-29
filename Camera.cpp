@@ -8,7 +8,7 @@ void Camera::Matrix(float FOVdeg, float nearPlane, float farPlane, Shader& shade
 {
 	glm::mat4 view = glm::mat4(1.0f);
 	glm::mat4 proj = glm::mat4(1.0f);
-	view = glm::lookAt(position, position + orientation,Up);
+	view = glm::lookAt(position, position +orientation,Up);
 	proj = glm::perspective(glm::radians(FOVdeg), ((float)width / (float)height), nearPlane, farPlane);
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID,uniform), 1, GL_FALSE, glm::value_ptr(proj*view));
 }
@@ -71,7 +71,7 @@ void Camera::Inputs(GLFWwindow* window)
 		glm::vec3 newOrientation = glm::rotate(orientation, glm::radians(-rotX), glm::normalize(glm::cross(orientation, Up)));
 
 		// Decides whether or not the next vertical Orientation is legal or not
-		if (abs(glm::angle(newOrientation, Up) - glm::radians(90.0f)) <= glm::radians(87.0f))
+		if (abs(glm::angle(newOrientation, Up) - glm::radians(90.0f)) <= glm::radians(90.0f))
 		{
 			orientation = newOrientation;
 		}
