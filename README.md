@@ -7,3 +7,6 @@ press e to start the video
 
 there are 2 exes, basically 4x4 is quarter the resolution of the 2x2
 1x1 is unavailable because the file size is too big for github
+
+https://www.youtube.com/watch?v=dO0JZpU5cGg
+Video of 1x1 binaries
